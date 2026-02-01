@@ -9,10 +9,10 @@ from torch.utils.data import DataLoader, TensorDataset
 import kagglehub
 import os
 
-# 1. DATA PREPARATION
+
 download_dir = kagglehub.dataset_download("muratkokludataset/date-fruit-datasets")
 
-# Find the Excel file within the downloaded directory
+
 excel_file_path = None
 for dirpath, dirnames, filenames in os.walk(download_dir):
     for filename in filenames:
@@ -29,28 +29,28 @@ df = pd.read_excel(excel_file_path)
 X = df.drop('Class', axis=1).values
 y = LabelEncoder().fit_transform(df['Class'])
 
-# Scale data (Transformers are sensitive to scale)
+
 schler = StandardScaler()
 X = scaler.fit_transform(X)
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Convert to PyTorch Tensors
-X_train_t = torch.FloatTensor(X_train).unsqueeze(-1) # Add 'token' dimension
+
+X_train_t = torch.FloatTensor(X_train).unsqueeze(-1) 
 y_train_t = torch.LongTensor(y_train)
 X_test_t = torch.FloatTensor(X_test).unsqueeze(-1)
 y_test_t = torch.LongTensor(y_test)
 
 train_loader = DataLoader(TensorDataset(X_train_t, y_train_t), batch_size=32, shuffle=True)
 
-# 2. THE LLM ALGORITHM (Transformer Encoder)
+
 class DateTransformer(nn.Module):
     def __init__(self, num_features, num_classes):
         super().__init__()
-        self.embed = nn.Linear(1, 64) # Continuous Value Embedding
+        self.embed = nn.Linear(1, 64) 
         self.pos_embed = nn.Parameter(torch.zeros(1, num_features, 64))
 
-        # The core LLM Algorithm: Multi-Head Attention
+
         encoder_layer = nn.TransformerEncoderLayer(d_model=64, nhead=4, dim_feedforward=128, batch_first=True)
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=3)
 
@@ -59,10 +59,10 @@ class DateTransformer(nn.Module):
     def forward(self, x):
         x = self.embed(x) + self.pos_embed
         x = self.transformer(x)
-        x = x.view(x.size(0), -1) # Flatten for classification
+        x = x.view(x.size(0), -1) 
         return self.classifier(x)
 
-# 3. TRAINING
+
 model = DateTransformer(X.shape[1], len(np.unique(y)))
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
@@ -74,7 +74,7 @@ for epoch in range(50):
         loss.backward()
         optimizer.step()
 
-# 4. EVALUATION
+
 model.eval()
 with torch.no_grad():
     outputs = model(X_test_t)
